@@ -1,18 +1,21 @@
 #include <Arduino.h>
 #include <TM1637Display.h>
 
+#define INTERRUPT 2
+
 // Module A
-#define CLK_A 2
 #define DIO_A 3
+#define CLK_A 4
 // Module B
-#define CLK_B 4
 #define DIO_B 5
+#define CLK_B 6
 
 // Buttons
-#define BTN_A 10
-#define BTN_B 11
+#define BTN_A 9
+#define BTN_B 10
 #define BTN_C 12
-#define BTN_D 13
+#define BTN_D 11
+
 
 #define BRIGH 0x0f
 #define MAX_LEAPS 16
@@ -82,6 +85,7 @@ void checkButtons() {
   // BTN A
   if(digitalRead(BTN_A) == LOW && !btn_a) {
     btn_a = true;
+    Serial.println("A");
     // pressed
     if(running) pauseTimer();
     else startTimer();
@@ -95,6 +99,7 @@ void checkButtons() {
   // BTN B
   if(digitalRead(BTN_B) == LOW && !btn_b) {
     btn_b = true;
+    Serial.println("B");
     // pressed
     if(running) saveLeap();
     else resetTimer();
@@ -107,6 +112,7 @@ void checkButtons() {
   // BTN C
   if(digitalRead(BTN_C) == LOW && !btn_c) {
     btn_c = true;
+    Serial.println("C");
     // pressed
     if(!running) leapUp();
   } else if (digitalRead(BTN_C) == HIGH && btn_c) {
@@ -117,12 +123,27 @@ void checkButtons() {
   // BTN D
   if(digitalRead(BTN_D) == LOW && !btn_d) {
     btn_d = true;
+    Serial.println("D");
     // pressed
   } else if (digitalRead(BTN_D) == HIGH && btn_d) {
     btn_d = false;
     // released
     if(!running) leapDown();
   }
+}
+
+unsigned long last_interrupt_time = 0;
+
+void interrupt_handler()
+{
+  Serial.println("INTER");
+  
+  // If interrupts come faster than 200ms, assume it's a bounce and ignore
+  if ((millis() - last_interrupt_time) > 50) 
+  {
+    checkButtons();
+  }
+  last_interrupt_time = millis();
 }
 
 void showTime(unsigned long mils, bool dots = true) {
@@ -144,6 +165,9 @@ void setup()
   pinMode(BTN_B, INPUT_PULLUP);
   pinMode(BTN_C, INPUT_PULLUP);
   pinMode(BTN_D, INPUT_PULLUP);
+  pinMode(INTERRUPT, INPUT_PULLUP);
+
+  attachInterrupt(digitalPinToInterrupt(INTERRUPT), interrupt_handler, CHANGE);
 
   da.setBrightness(BRIGH);
   da.clear();
@@ -160,7 +184,7 @@ void setup()
 }
 
 void loop() {
-  checkButtons();
+  // checkButtons();
   if(running) {
     showTime((elapsed + (millis() - start)));
   } else {
